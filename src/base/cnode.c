@@ -154,7 +154,7 @@ int cnode_cleanup(void) {
 
     if (nodecfg.exit_status != EXIT_SUCCESS) {
         print_message_format_color(STDERR_FILENO, LOG_ERROR);
-        printf("Central node exited with error code: %d - E%d [%#02x] - '%s'\n", nodecfg.last_errno, nodecfg.last_errno, errno, node_strerror(nodecfg.last_errno));
+        printf("Central Node exited with error code: %d - E%d [%#02x] - '%s'\n", nodecfg.last_errno, nodecfg.last_errno, errno, node_strerror(nodecfg.last_errno));
     }
 
     if (nodecfg.rsp64 != NO_ADDR) {
