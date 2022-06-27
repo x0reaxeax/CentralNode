@@ -192,7 +192,7 @@ static char **menu_entries_load_networks(unsigned int *num_entries_out) {
 
 int menu_init_all_menus(menuid_t start_menu) {
     /* Main menu */
-    char *menu_main_items[] = { (nodecfg.netrepo_status) ? "Browse networks" : "Network Offline", "nodeWD CTL", "Config CTL", "tincd CTL", "Check for Updates", "Reset Logfile", "Contact Info", "Exit" };
+    char *menu_main_items[] = { (nodecfg.netrepo_status && nodecfg.n_networks) ? "Browse networks" : "Network Offline", "nodeWD CTL", "Config CTL", "tincd CTL", "Check for Updates", "Reset Logfile", "Contact Info", "Exit" };
 
     /* nodeWD CTL items */
     char *menu_nodewd_items[] = { "Load nodeWD", "Unload nodeWD", "Show process blacklist", "Set scan interval", (nodecfg.godmode) ? "Disable GodMode" : "Enable GodMode", "Return" };
@@ -222,7 +222,7 @@ int menu_init_all_menus(menuid_t start_menu) {
     menu_networks.menu_entries  = menu_entries_load_networks(&menu_networks.nentries);
     menu_networks.menu_title    = nodecfg.netrepo;
     menu_networks.maxy          = 10;
-    menu_networks.maxx          = (netrepo_len > nodecfg.longest_net_entry) ? (netrepo_len + 8) : (((nodecfg.longest_net_entry + 8) > MENU_ENTRY_MAXLEN) ? nodecfg.longest_net_entry + 8 : MENU_ENTRY_MAXLEN);  /* i cant believe this actually works LOL.. please don't kill me whoever is reading this. nested ternary operator for 2 checks */
+    menu_networks.maxx          = (netrepo_len > nodecfg.longest_net_entry) ? (netrepo_len + 8) : (((nodecfg.longest_net_entry + 8) > MENU_ENTRY_MAXLEN) ? nodecfg.longest_net_entry + 8 : MENU_ENTRY_MAXLEN);
 
     struct menu_info menu_nodewd;
     menu_nodewd.mid             = MENU_ID_NODEWDCTL;
@@ -494,6 +494,12 @@ msemaphore menu_loadmenu(struct menu_info *minfo) {
     semaphore.next_menu         = minfo->mid;
     semaphore.current_menu      = minfo->mid;
 
+    if (minfo->nentries == 0) {
+        /* No menu items, stay in previous menu */
+        semaphore.next_menu = minfo->prev_mid;
+        return semaphore;
+    }
+
     log_write(LOG_DEBUG, "Loading menu ID '%u' titled '%s'", minfo->mid, minfo->menu_title);
 
     int rstatus = E_OK;                     /* return status for ncurses functions */
@@ -556,6 +562,7 @@ msemaphore menu_loadmenu(struct menu_info *minfo) {
     }
 
     /* initialize all entries/items */
+    log_write(LOG_DEBUG, "Initializing new menu with %u items..", minfo->nentries);
     for (size_t i = 0; i < minfo->nentries; i++) {
         item_allitems[i] = new_item(minfo->menu_entries[i], NULL);
     }

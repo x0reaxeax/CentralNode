@@ -20,8 +20,8 @@ int crypto_md5hash_file(const char *filepath, unsigned char *hashout) {
 
     int return_code = EXIT_SUCCESS;
     size_t crypto_bytes = 0;
-    unsigned char stream_buffer[BUFSIZ];            /* FP read output */
-    unsigned char md5_digest[MD5_DIGEST_LENGTH];    /* digest output bytes */
+    unsigned char stream_buffer[BUFSIZ] = { 0 };            /* FP read output */
+    unsigned char md5_digest[MD5_DIGEST_LENGTH] = { 0 };    /* digest output bytes */
 
     FILE *fp = fopen(filepath, "rb");
     
@@ -69,7 +69,7 @@ int crypto_md5hash_file(const char *filepath, unsigned char *hashout) {
 
     /* Convert bytes to hex str output */
     for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
-        if (hashout + i * 2 != NULL && hashout + ((i * 2) + 1) != NULL) {
+        if (hashout + ((i * 2) + 1) < hashout + MD5_DIGEST_LENGTH) {
             snprintf((char *) hashout + (i * 2), 4, "%02x", md5_digest[i]);
         } else {
             NODE_SETLASTERR(CURRENT_ADDR, "Attempted to write out of bounds:", EOUTBND);
