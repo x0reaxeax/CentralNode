@@ -4,6 +4,7 @@
 #include "../data/data.h"
 
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 
 static int network_info_entry_add(network_info_st **netinfo, network_id_t net_local_id, const char *network_name) {
@@ -90,10 +91,20 @@ int net_format_url(int netop, char *output_url) {
     return EXIT_SUCCESS;
 }
 
+bool isspecial(char c) {
+    char allowed_special_chars[] = { '.', '-', '_', '[', ']', '*', ' ', '\n' };
+    for (uint8_t i = 0; i < sizeof(allowed_special_chars); i++) {
+        if (c == allowed_special_chars[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int net_get_networks(void) {
     /* Fetch network list */
-    size_t buffer_len;                              /* curl output str len */
-    char curl_netlist[BUFSIZ];                      /* unformatted output */
+    size_t buffer_len = 0;                          /* curl output str len */
+    char curl_netlist[BUFSIZ] = { 0 };              /* unformatted output */
     char net_cmd_getnet_url[NET_URL_MAX] = { 0 };   /* net destination url */
     
     if (net_format_url(NETOP_GET_NETWORKS, net_cmd_getnet_url) != EXIT_SUCCESS) {
@@ -115,10 +126,27 @@ int net_get_networks(void) {
 
     size_t num_networks = 0;
 
-    if (curl_netlist == NULL) {
+    if (curl_netlist[0] == 0) {
         NODE_SETLASTERR(CURRENT_ADDR, NODE_NOINFO, ENULLPTR);
         log_write_trace("net_get_networks()", "net_get_networks");
         return 0;
+    }
+
+    /* invalid character check */
+    log_write(LOG_DEBUG, "Checking remote network data..");    
+    {
+        size_t i = 0;
+        while (curl_netlist[i] != 0 && i < sizeof(curl_netlist) - 1) {
+            if (!isalnum(curl_netlist[i]) && !isspecial(curl_netlist[i])) {
+                /* this probably shouldn't be treated as an error, so warn only
+                    NODE_SETLASTERR(CURRENT_ADDR, "Remote network data contains invalid characters", EINVAL);
+                    log_write_trace("net_get_networks()", "isalnum(netlist[i])");
+                */
+                log_write(LOG_DEBUG, "Remote network data contains invalid character: '%c' - (0x%02x)", curl_netlist[i], curl_netlist[i]);
+                return 0;
+            }
+            i++;
+        }
     }
 
     FILE *fbp = fmemopen(curl_netlist, buffer_len + 1, "r");
@@ -133,14 +161,14 @@ int net_get_networks(void) {
     while (fgets(tmp_network_name, NETWORK_NAME_MAX, fbp)) {
         size_t slen = strlen(tmp_network_name);
 
-        if (slen > NETWORK_NAME_MAX - 1 || slen < 1) {
+        if (slen > NETWORK_NAME_MAX - 1 || slen <= 1) {
             /* This should never happen, but whatever */
             continue;
         }
         tmp_network_name[strcspn(tmp_network_name, "\n")] = 0;
             
         if (slen > nodecfg.longest_net_entry) {
-        size_t next_mul = rtonm(nodecfg.longest_net_entry + slen, 8);
+            size_t next_mul = rtonm(nodecfg.longest_net_entry + slen, 8);
             if (next_mul > nodecfg.longest_net_entry) {
                 nodecfg.longest_net_entry = next_mul;
             }
